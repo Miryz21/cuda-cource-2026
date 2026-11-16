@@ -27,7 +27,7 @@ __global__ void saxpy(const float* x, float* y, float a, int n) {
 
 __global__ void relu(const float* x, float* y, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n){
-        y = max(0, x);
+    if (i < n) {
+        y[i] = fmaxf(x[i], 0.0f);
     }
 }
