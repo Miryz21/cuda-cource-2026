@@ -24,3 +24,10 @@ __global__ void saxpy(const float* x, float* y, float a, int n) {
         y[i] = a * x[i] + y[i];
     }
 }
+
+__global__ void relu(const float* x, float* y, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n){
+        y = max(0, x);
+    }
+}
