@@ -253,9 +253,3 @@ Desktop.ini
 *.prof
 *.csv
 nsight_results/
-.aider*
-
-# Lab data and outputs (large generated files, not part of submission)
-works/*/lab*/data/
-works/*/lab*/results/
-!works/*/lab*/data/example.txt

@@ -17,25 +17,25 @@
 #include <string>
 #include <vector>
 
-#define CUDA_CHECK(call)                                                 \
-    do {                                                                 \
-        cudaError_t err_ = (call);                                       \
-        if (err_ != cudaSuccess) {                                       \
-            std::cerr << "CUDA ошибка: " << cudaGetErrorString(err_)    \
-                      << " (строка " << __LINE__ << ")\n";              \
-            return 1;                                                    \
-        }                                                                \
+#define CUDA_CHECK(call)                                                                           \
+    do {                                                                                           \
+        cudaError_t err_ = (call);                                                                 \
+        if (err_ != cudaSuccess) {                                                                 \
+            std::cerr << "CUDA ошибка: " << cudaGetErrorString(err_) << " (строка " << __LINE__    \
+                      << ")\n";                                                                    \
+            return 1;                                                                              \
+        }                                                                                          \
     } while (0)
 
 // Ядра из kernels.cu.
-extern __global__ void add_coalesced(const float* a, const float* b, float* out, int n);
-extern __global__ void add_noncoalesced(const float* a, const float* b, float* out, int n);
-extern __global__ void saxpy_coalesced(const float* x, const float* y, float* out, float alpha,
+extern __global__ void add_coalesced(const float *a, const float *b, float *out, int n);
+extern __global__ void add_noncoalesced(const float *a, const float *b, float *out, int n);
+extern __global__ void saxpy_coalesced(const float *x, const float *y, float *out, float alpha,
                                        int n);
-extern __global__ void saxpy_noncoalesced(const float* x, const float* y, float* out, float alpha,
+extern __global__ void saxpy_noncoalesced(const float *x, const float *y, float *out, float alpha,
                                           int n);
-extern __global__ void relu_coalesced(const float* x, float* out, int n);
-extern __global__ void relu_noncoalesced(const float* x, float* out, int n);
+extern __global__ void relu_coalesced(const float *x, float *out, int n);
+extern __global__ void relu_noncoalesced(const float *x, float *out, int n);
 
 namespace {
 
@@ -50,7 +50,7 @@ void print_help() {
                  "Коды возврата: 0 — успех, 1 — ошибка выполнения, 2 — неверные аргументы.\n";
 }
 
-bool read_input(const std::string& path, std::vector<float>& a, std::vector<float>& b) {
+bool read_input(const std::string &path, std::vector<float> &a, std::vector<float> &b) {
     std::ifstream in(path);
     long n = 0;
     if (!(in >> n) || n < 0 || n > INT32_MAX) {
@@ -68,7 +68,7 @@ bool read_input(const std::string& path, std::vector<float>& a, std::vector<floa
     return true;
 }
 
-void write_section(std::ofstream& out, const char* name, const std::vector<float>& v) {
+void write_section(std::ofstream &out, const char *name, const std::vector<float> &v) {
     out << name << "\n" << std::setprecision(9);
     for (size_t i = 0; i < v.size(); ++i) {
         out << v[i] << (i + 1 < v.size() ? ' ' : '\n');
@@ -81,40 +81,46 @@ float median_of(std::vector<float> v) {
     return v.empty() ? 0.0f : (v.size() % 2 ? v[m] : (v[m - 1] + v[m]) * 0.5f);
 }
 
-}  // namespace
+} // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     std::string in_path, out_path, mode = "coalesced";
     float alpha = 2.0f;
     int block = 256, repeat = 10;
 
-    auto val = [&](int& i) -> std::string {
+    auto val = [&](int &i) -> std::string {
         if (i + 1 >= argc) {
             std::cerr << argv[i] << ": требуется значение\n";
             std::exit(2);
         }
         return argv[++i];
     };
-    auto num = [](const std::string& s) {
-        char* e = nullptr;
+    auto num = [](const std::string &s) {
+        char *e = nullptr;
         std::strtod(s.c_str(), &e);
         return e != s.c_str() && *e == '\0';
     };
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "--input") in_path = val(i);
-        else if (a == "--output") out_path = val(i);
-        else if (a == "--mode") mode = val(i);
+        if (a == "--input")
+            in_path = val(i);
+        else if (a == "--output")
+            out_path = val(i);
+        else if (a == "--mode")
+            mode = val(i);
         else if (a == "--alpha" || a == "--block" || a == "--repeat") {
             std::string v = val(i);
             if (!num(v)) {
                 std::cerr << a << ": требуется число\n";
                 return 2;
             }
-            if (a == "--alpha") alpha = std::strtof(v.c_str(), nullptr);
-            else if (a == "--block") block = std::atoi(v.c_str());
-            else repeat = std::atoi(v.c_str());
+            if (a == "--alpha")
+                alpha = std::strtof(v.c_str(), nullptr);
+            else if (a == "--block")
+                block = std::atoi(v.c_str());
+            else
+                repeat = std::atoi(v.c_str());
         } else if (a == "--help" || a == "-h") {
             print_help();
             return 0;
@@ -137,7 +143,8 @@ int main(int argc, char** argv) {
     }
 
     std::vector<float> h_a, h_b;
-    if (!read_input(in_path, h_a, h_b)) return 2;
+    if (!read_input(in_path, h_a, h_b))
+        return 2;
     const int n = static_cast<int>(h_a.size());
 
     std::ofstream out(out_path);
@@ -152,7 +159,7 @@ int main(int argc, char** argv) {
         write_section(out, "saxpy", h_saxpy);
         write_section(out, "relu", h_relu);
     };
-    if (n == 0) {  // Пустой вход: ядра не запускаем.
+    if (n == 0) { // Пустой вход: ядра не запускаем.
         write_results();
         std::cout << "n=0: ядра не запускались.\n";
         return 0;
@@ -167,24 +174,31 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaMalloc(&d_out, bytes));
     cudaStream_t stream;
     CUDA_CHECK(cudaStreamCreate(&stream));
-    cudaEvent_t ev[6];  // 0:старт 1:H2D 2:add 3:saxpy 4:relu 5:D2H
-    for (cudaEvent_t& e : ev) CUDA_CHECK(cudaEventCreate(&e));
+    cudaEvent_t ev[6]; // 0:старт 1:H2D 2:add 3:saxpy 4:relu 5:D2H
+    for (cudaEvent_t &e : ev)
+        CUDA_CHECK(cudaEventCreate(&e));
 
     const int grid = (n + block - 1) / block;
     const bool coal = (mode == "coalesced");
     auto launch_add = [&]() -> cudaError_t {
-        if (coal) add_coalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, n);
-        else add_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, n);
+        if (coal)
+            add_coalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, n);
+        else
+            add_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, n);
         return cudaGetLastError();
     };
     auto launch_saxpy = [&]() -> cudaError_t {
-        if (coal) saxpy_coalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, alpha, n);
-        else saxpy_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, alpha, n);
+        if (coal)
+            saxpy_coalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, alpha, n);
+        else
+            saxpy_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_b, d_out, alpha, n);
         return cudaGetLastError();
     };
     auto launch_relu = [&]() -> cudaError_t {
-        if (coal) relu_coalesced<<<grid, block, 0, stream>>>(d_a, d_out, n);
-        else relu_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_out, n);
+        if (coal)
+            relu_coalesced<<<grid, block, 0, stream>>>(d_a, d_out, n);
+        else
+            relu_noncoalesced<<<grid, block, 0, stream>>>(d_a, d_out, n);
         return cudaGetLastError();
     };
 
@@ -218,7 +232,8 @@ int main(int argc, char** argv) {
             t[5].push_back(ms);
         }
     }
-    for (cudaEvent_t& e : ev) CUDA_CHECK(cudaEventDestroy(e));
+    for (cudaEvent_t &e : ev)
+        CUDA_CHECK(cudaEventDestroy(e));
     CUDA_CHECK(cudaStreamDestroy(stream));
     CUDA_CHECK(cudaFree(d_a));
     CUDA_CHECK(cudaFree(d_b));
@@ -233,11 +248,12 @@ int main(int argc, char** argv) {
         const double ref[3] = {static_cast<double>(h_a[i]) + h_b[i],
                                static_cast<double>(alpha) * h_a[i] + h_b[i],
                                std::max(static_cast<double>(h_a[i]), 0.0)};
-        const float* got[3] = {h_add.data(), h_saxpy.data(), h_relu.data()};
+        const float *got[3] = {h_add.data(), h_saxpy.data(), h_relu.data()};
         for (int k = 0; k < 3; ++k) {
             double d = std::fabs(got[k][i] - ref[k]);
             max_err[k] = std::max(max_err[k], d);
-            if (d > tol + rtol * std::fabs(ref[k])) ok = false;
+            if (d > tol + rtol * std::fabs(ref[k]))
+                ok = false;
         }
     }
 
@@ -250,7 +266,6 @@ int main(int argc, char** argv) {
               << std::scientific << "max|ошибка| add=" << max_err[0] << " saxpy=" << max_err[1]
               << " relu=" << max_err[2] << " (atol 1e-05 + rtol 1e-05*|ref|) — "
               << (ok ? "OK" : "РАСХОЖДЕНИЕ") << "\n"
-              << "выделение памяти (3 буфера по " << bytes
-              << " Б) в полный цикл не входит\n";
+              << "выделение памяти (3 буфера по " << bytes << " Б) в полный цикл не входит\n";
     return ok ? 0 : 1;
 }
