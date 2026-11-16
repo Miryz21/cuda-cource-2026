@@ -4,6 +4,7 @@
 Формат: первая строка — n, далее n строк «a b» (float).
 Seed фиксируется для воспроизводимости.
 """
+
 from __future__ import annotations
 
 import argparse

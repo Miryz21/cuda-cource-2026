@@ -4,6 +4,7 @@
 Читает вход (a, b) и выход программы (секции add, saxpy, relu),
 сравнивает с a+b, alpha*a+b, maximum(a, 0).
 """
+
 from __future__ import annotations
 
 import argparse
