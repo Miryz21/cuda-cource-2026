@@ -1,8 +1,9 @@
 // Lab 1: CLI-обвес над ядрами из src/kernels.cu.
 //
-// Читает n пар «a b», гоняет на GPU add, SAXPY (alpha*a+b) и ReLU в режиме
-// coalesced/noncoalesced, меряет CUDA events H2D / ядра / D2H / полный цикл,
-// сверяет с CPU и пишет секции add, saxpy, relu в --output.
+// Читает «N alpha», затем N пар «x y», гоняет на GPU add (x+y), SAXPY
+// (alpha*x+y) и ReLU (max(0,x)) в режиме coalesced/noncoalesced, меряет
+// CUDA events H2D / ядра / D2H / полный цикл, сверяет с CPU и пишет в
+// --output N строк «x+y  alpha*x+y  max(0,x)» без заголовка.
 // Коды возврата: 0 — успех, 1 — ошибка выполнения, 2 — неверные аргументы.
 
 #include <cuda_runtime.h>
@@ -43,18 +44,22 @@ void print_help() {
     std::cout << "Lab 1: сложение векторов, SAXPY и ReLU на GPU.\n"
                  "Использование: ./submission --input <путь> --output <путь> "
                  "[--mode coalesced|noncoalesced] [--alpha f] [--block 1..1024] [--repeat n]\n"
-                 "Вход: строка n, далее n строк «a b» (float). Выход: секции add, saxpy, relu.\n"
+                 "Вход: строка «N alpha», далее N строк «x y» (float). "
+                 "Выход: N строк «x+y alpha*x+y max(0,x)», без заголовка.\n"
                  "Режимы доступа: coalesced — поток берёт элемент i = blockIdx*blockDim+threadIdx; "
                  "noncoalesced — j = threadIdx*gridDim+blockIdx (шаг потоков warp равен grid).\n"
-                 "По умолчанию: coalesced, alpha=2.0, block=256, repeat=10.\n"
+                 "По умолчанию: coalesced, block=256, repeat=10; alpha берётся из входа, "
+                 "--alpha переопределяет его.\n"
                  "Коды возврата: 0 — успех, 1 — ошибка выполнения, 2 — неверные аргументы.\n";
 }
 
-bool read_input(const std::string &path, std::vector<float> &a, std::vector<float> &b) {
+bool read_input(const std::string &path, std::vector<float> &a, std::vector<float> &b,
+                float &alpha) {
     std::ifstream in(path);
     long n = 0;
-    if (!(in >> n) || n < 0 || n > INT32_MAX) {
-        std::cerr << "Некорректный входной файл: " << path << "\n";
+    if (!(in >> n >> alpha) || n < 0 || n > INT32_MAX) {
+        std::cerr << "Некорректный входной файл: " << path
+                  << " (первая строка: «N alpha»)\n";
         return false;
     }
     a.resize(n);
@@ -68,13 +73,6 @@ bool read_input(const std::string &path, std::vector<float> &a, std::vector<floa
     return true;
 }
 
-void write_section(std::ofstream &out, const char *name, const std::vector<float> &v) {
-    out << name << "\n" << std::setprecision(9);
-    for (size_t i = 0; i < v.size(); ++i) {
-        out << v[i] << (i + 1 < v.size() ? ' ' : '\n');
-    }
-}
-
 float median_of(std::vector<float> v) {
     std::sort(v.begin(), v.end());
     size_t m = v.size() / 2;
@@ -86,6 +84,7 @@ float median_of(std::vector<float> v) {
 int main(int argc, char **argv) {
     std::string in_path, out_path, mode = "coalesced";
     float alpha = 2.0f;
+    bool alpha_override = false;
     int block = 256, repeat = 10;
 
     auto val = [&](int &i) -> std::string {
@@ -115,8 +114,10 @@ int main(int argc, char **argv) {
                 std::cerr << a << ": требуется число\n";
                 return 2;
             }
-            if (a == "--alpha")
+            if (a == "--alpha") {
                 alpha = std::strtof(v.c_str(), nullptr);
+                alpha_override = true;
+            }
             else if (a == "--block")
                 block = std::atoi(v.c_str());
             else
@@ -143,8 +144,11 @@ int main(int argc, char **argv) {
     }
 
     std::vector<float> h_a, h_b;
-    if (!read_input(in_path, h_a, h_b))
+    float file_alpha = 0.0f;
+    if (!read_input(in_path, h_a, h_b, file_alpha))
         return 2;
+    if (!alpha_override)
+        alpha = file_alpha;
     const int n = static_cast<int>(h_a.size());
 
     std::ofstream out(out_path);
@@ -154,10 +158,10 @@ int main(int argc, char **argv) {
     }
     std::vector<float> h_add(n), h_saxpy(n), h_relu(n);
     auto write_results = [&]() {
-        out << "# lab1 mode=" << mode << " n=" << n << " alpha=" << alpha << "\n";
-        write_section(out, "add", h_add);
-        write_section(out, "saxpy", h_saxpy);
-        write_section(out, "relu", h_relu);
+        out << std::setprecision(9);
+        for (int i = 0; i < n; ++i) {
+            out << h_add[i] << ' ' << h_saxpy[i] << ' ' << h_relu[i] << '\n';
+        }
     };
     if (n == 0) { // Пустой вход: ядра не запускаем.
         write_results();

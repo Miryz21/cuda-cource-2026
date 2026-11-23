@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Генерация входов для Lab 1.
 
-Формат: первая строка — n, далее n строк «a b» (float).
+Формат: первая строка — «N alpha», далее N строк «x y» (float).
 Seed фиксируется для воспроизводимости.
 """
 
@@ -15,6 +15,7 @@ from pathlib import Path
 def main() -> None:
     parser = argparse.ArgumentParser(description="Генерация векторов a, b")
     parser.add_argument("--n", type=int, required=True)
+    parser.add_argument("--alpha", type=float, default=2.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument(
@@ -42,10 +43,10 @@ def main() -> None:
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as f:
-        f.write(f"{args.n}\n")
+        f.write(f"{args.n} {args.alpha:.9g}\n")
         for x, y in zip(a, b):
             f.write(f"{x:.9g} {y:.9g}\n")
-    print(f"n={args.n} seed={args.seed} kind={args.kind} -> {args.out}")
+    print(f"n={args.n} alpha={args.alpha} seed={args.seed} kind={args.kind} -> {args.out}")
 
 
 if __name__ == "__main__":
