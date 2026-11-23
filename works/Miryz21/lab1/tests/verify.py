@@ -30,8 +30,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Сверка с эталоном NumPy")
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--alpha", type=float, default=None,
-                        help="по умолчанию — alpha из первой строки входа")
+    parser.add_argument(
+        "--alpha", type=float, default=None, help="по умолчанию — alpha из первой строки входа"
+    )
     parser.add_argument("--atol", type=float, default=1e-5)
     parser.add_argument("--rtol", type=float, default=1e-5)
     args = parser.parse_args()

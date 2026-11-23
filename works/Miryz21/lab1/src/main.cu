@@ -58,8 +58,7 @@ bool read_input(const std::string &path, std::vector<float> &a, std::vector<floa
     std::ifstream in(path);
     long n = 0;
     if (!(in >> n >> alpha) || n < 0 || n > INT32_MAX) {
-        std::cerr << "Некорректный входной файл: " << path
-                  << " (первая строка: «N alpha»)\n";
+        std::cerr << "Некорректный входной файл: " << path << " (первая строка: «N alpha»)\n";
         return false;
     }
     a.resize(n);
@@ -117,8 +116,7 @@ int main(int argc, char **argv) {
             if (a == "--alpha") {
                 alpha = std::strtof(v.c_str(), nullptr);
                 alpha_override = true;
-            }
-            else if (a == "--block")
+            } else if (a == "--block")
                 block = std::atoi(v.c_str());
             else
                 repeat = std::atoi(v.c_str());
